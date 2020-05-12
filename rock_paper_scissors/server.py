@@ -1,3 +1,4 @@
+import enum
 import zmq
 
 from typing import Optional
@@ -9,13 +10,29 @@ print("BINDING TO PORT: 5555")
 socket.bind("tcp://*:5555")
 
 
+class Move(enum.Enum):
+
+    ROCK     = 1, "ROCK BREAKS SCISSORS"
+    PAPER    = 2, "PAPER WRAPS ROCK"
+    SCISSORS = 3, "SCISSORS CUT PAPER"
+    DRAW     = -1, "GAME DRAW"
+
+    def __new__(cls, value, reason):
+
+        new_obj = object.__new__(cls)
+        new_obj._value_ = value
+        new_obj.reason  = reason
+
+        return new_obj
+
+
 class Packet:
 
     def __init__(self):
 
         self.game_id   = 0
         self.player_id = 0
-        self.winner    = {}
+        self.result    = {}
         self.game_full = False
 
 
@@ -25,57 +42,39 @@ class Game:
 
         self.id      = 0
         self.players = 0
-        self.p1_move = ''
-        self.p2_move = ''
+        self.p1_move = None
+        self.p2_move = None
 
 
 games = {}
 
 
-def get_winner(game: Game) -> dict:
+def get_result(game: Game) -> dict:
 
     print("DETERMINING WINNER")
 
-    win = {
-        'player': 0,
+    result = {
+        'winner': 0,
         'reason': ''
     }
 
-    p_beat_r = "PAPER WRAPS ROCK"
-    r_beat_s = "ROCK BREAKS SCISSORS"
-    s_beat_p = "SCISSORS CUT PAPER"
-    tie      = "GAME WAS TIED. PLAY AGAIN"
-
     if not game.p1_move or not game.p2_move:
         print("NOT ENOUGH MOVES")
-        return win
+        return result
 
-    if game.p1_move == game.p2_move:
-        win['player'] = -1
-        win['reason'] = tie
+    if game.p1_move.value % 3 + 1 == game.p2_move.value:
+        result['winner'] = 2
+        result['reason'] = game.p2_move.reason
 
-        print("NO WINNER")
-        return win
+    elif game.p2_move.value % 3 + 1 == game.p1_move.value:
+        result['winner'] = 1
+        result['reason'] = game.p1_move.reason
 
-    state = {
-        game.p1_move : 1,
-        game.p2_move : 2,
-    }
+    else:
+        result['player'] = -1
+        result['reason'] = Move.DRAW.reason
 
-    chances = {
-        {'p', 'r'}: {'move': 'p', 'reason': p_beat_r},
-        {'r', 's'}: {'move': 'r', 'reason': r_beat_s},
-        {'s', 'p'}: {'move': 's', 'reason': s_beat_p}
-    }
-
-    c = chances[{game.p1_move, game.p2_move}]
-
-    win['player'] = state[c['move']]
-    win['reason'] = c['reason']
-
-    print("WINNER IS: {}".format(win['player']))
-
-    return win
+    return result
 
 
 def set_move(turn: dict, game: Game) -> Game:
@@ -122,6 +121,14 @@ def create_game() -> Game:
     print("GAME CREATED WITH ID: {}".format(id_))
 
     return g
+
+
+def reset_moves(game: Game) -> Game:
+
+    game.p1_move = None
+    game.p2_move = None
+
+    return game
 
 
 if __name__ == '__main__':
@@ -174,16 +181,18 @@ if __name__ == '__main__':
             g = set_move(obj, get_game(obj['game_id']))
             p = Packet()
 
-            winner = get_winner(g)
-
             p.game_id   = g.id
             p.player_id = obj['player_id']
 
-            if not winner['player']:
+            res = get_result(g)
+
+            if not res['winner']:
                 socket.send_pyobj(p)
                 continue
 
-            p.winner = winner
+            p.result = res
+
+            g = reset_moves(g)
 
             socket.send_pyobj(p)
             continue

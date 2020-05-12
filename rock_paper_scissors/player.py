@@ -1,3 +1,4 @@
+import enum
 import time
 import zmq
 
@@ -8,13 +9,30 @@ socket = context.socket(zmq.REQ)
 socket.connect("tcp://localhost:5555")
 
 
+class Move(enum.Enum):
+
+    ROCK     = 1, "ROCK BREAKS SCISSORS"
+    PAPER    = 2, "PAPER WRAPS ROCK"
+    SCISSORS = 3, "SCISSORS CUT PAPER"
+    DRAW     = -1, "GAME DRAW"
+
+    def __new__(cls, value, reason):
+
+        new_obj = object.__new__(cls)
+
+        new_obj._value_ = value
+        new_obj.reason  = reason
+
+        return new_obj
+
+
 class Packet:
 
     def __init__(self):
 
         self.game_id   = 0
         self.player_id = 0
-        self.winner    = {}
+        self.result    = {}
         self.game_full = False
 
 
@@ -76,19 +94,19 @@ def wait_for_response(p):
 
         res = socket.recv_pyobj()
 
-        if not res.winner:
+        if not res.result:
             time.sleep(1)
             continue
 
-        return res.winner
+        return res.result
 
 
 if __name__ == '__main__':
 
     moves = {
-        'r': 'ROCK',
-        'p': 'PAPER',
-        's': 'SCISSORS'
+        'r': Move.ROCK,
+        'p': Move.PAPER,
+        's': Move.SCISSORS
     }
 
     obj = main()
@@ -107,21 +125,21 @@ if __name__ == '__main__':
             print("INVALID. TRY AGAIN")
             continue
 
-        print("YOU PLAYED: {}".format(moves[move]))
+        print("YOU PLAYED: {}".format(moves[move].name))
 
-        packet['move'] = state['move'] = move
+        packet['move'] = state['move'] = moves[move]
 
         packet['game_id']   = state['game_id']
         packet['player_id'] = state['player_id']
 
-        winner = wait_for_response(packet)
+        response = wait_for_response(packet)
 
-        print(winner['reason'])
+        print(response['reason'])
 
-        if winner['player'] == state['player_id']:
+        if response['winner'] == state['player_id']:
             print("YOU WIN")
 
-        elif winner['player'] == -1:
+        elif response['winner'] == -1:
             print("NO WINNER")
 
         else:
