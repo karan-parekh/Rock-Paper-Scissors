@@ -34,17 +34,28 @@ games = {}
 
 def get_winner(game: Game) -> dict:
 
+    print("DETERMINING WINNER")
+
     win = {
         'player': 0,
         'reason': ''
     }
 
-    if not game.p1_move or not game.p2_move:
-        return win
-
     p_beat_r = "PAPER WRAPS ROCK"
     r_beat_s = "ROCK BREAKS SCISSORS"
     s_beat_p = "SCISSORS CUT PAPER"
+    tie      = "GAME WAS TIED. PLAY AGAIN"
+
+    if not game.p1_move or not game.p2_move:
+        print("NOT ENOUGH MOVES")
+        return win
+
+    if game.p1_move == game.p2_move:
+        win['player'] = -1
+        win['reason'] = tie
+
+        print("NO WINNER")
+        return win
 
     state = {
         game.p1_move : 1,
@@ -62,10 +73,14 @@ def get_winner(game: Game) -> dict:
     win['player'] = state[c['move']]
     win['reason'] = c['reason']
 
+    print("WINNER IS: {}".format(win['player']))
+
     return win
 
 
 def set_move(turn: dict, game: Game) -> Game:
+
+    print("SETTING MOVES")
 
     if turn['player_id'] == 1:
         game.p1_move = turn['move']
@@ -78,17 +93,20 @@ def set_move(turn: dict, game: Game) -> Game:
 
 def get_game(id_: int) -> Optional[Game]:
 
+    print("LOOKING FOR GAME WITH ID: {}".format(id_))
+
     g = games.get(id_)
 
     if not g:
         return
 
-    g.players += 1
+    print("FOUND GAME")
 
     return g
 
 
 def create_game() -> Game:
+    print("CREATING GAME")
 
     id_ = 1
 
@@ -101,6 +119,8 @@ def create_game() -> Game:
 
     games[id_] = g
 
+    print("GAME CREATED WITH ID: {}".format(id_))
+
     return g
 
 
@@ -111,12 +131,16 @@ if __name__ == '__main__':
         obj     = socket.recv_pyobj()
         command = obj['cmd']
 
+        print("RECEIVED COMMAND: {}".format(command))
+
         if command == 'create':
             g = create_game()
             p = Packet()
 
             p.game_id   = g.id
             p.player_id = 1
+
+            print("TOTAL PLAYERS: {}".format(g.players))
 
             socket.send_pyobj(p)
             continue
@@ -129,7 +153,11 @@ if __name__ == '__main__':
                 socket.send_pyobj(p)
                 continue
 
-            if g.players >= 2:
+            g.players += 1
+
+            print("TOTAL PLAYERS: {}".format(g.players))
+
+            if g.players > 2:
                 p.game_id   = g.id
                 p.game_full = True
 
