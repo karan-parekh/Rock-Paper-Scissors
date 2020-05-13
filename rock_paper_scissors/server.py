@@ -10,6 +10,13 @@ print("BINDING TO PORT: 5555")
 socket.bind("tcp://*:5555")
 
 
+class Status(enum.Enum):
+
+    PLAYING = 1
+    WAITING = 2
+    DONE    = 3
+
+
 class Move(enum.Enum):
 
     ROCK     = 1, "ROCK BREAKS SCISSORS"
@@ -36,14 +43,23 @@ class Packet:
         self.game_full = False
 
 
+class Player:
+
+    def __init__(self, id_: int):
+
+        self.id     = id_
+        self.move   = None
+        self.status = None
+
+
 class Game:
 
     def __init__(self):
 
         self.id      = 0
         self.players = 0
-        self.p1_move = None
-        self.p2_move = None
+        self.p1      = Player(1)
+        self.p2      = Player(2)
 
 
 games = {}
@@ -58,17 +74,17 @@ def get_result(game: Game) -> dict:
         'reason': ''
     }
 
-    if not game.p1_move or not game.p2_move:
+    if not game.p1.move or not game.p2.move:
         print("NOT ENOUGH MOVES")
         return result
 
-    if game.p1_move.value % 3 + 1 == game.p2_move.value:
-        result['winner'] = 2
-        result['reason'] = game.p2_move.reason
+    if game.p1.move.value % 3 + 1 == game.p2.move.value:
+        result['winner'] = game.p2.id
+        result['reason'] = game.p2.move.reason
 
-    elif game.p2_move.value % 3 + 1 == game.p1_move.value:
-        result['winner'] = 1
-        result['reason'] = game.p1_move.reason
+    elif game.p2.move.value % 3 + 1 == game.p1.move.value:
+        result['winner'] = game.p1.id
+        result['reason'] = game.p1.move.reason
 
     else:
         result['player'] = -1
@@ -77,15 +93,30 @@ def get_result(game: Game) -> dict:
     return result
 
 
+def update_status(game: Game, pid: int, status: Status) -> Game:
+
+    print("PLAYER {} STATUS UPDATED TO {}".format(pid, status.name))
+
+    if pid == 1:
+        game.p1.status = status.value
+
+    if pid == 2:
+        game.p2.status = status.value
+
+    return game
+
+
 def set_move(turn: dict, game: Game) -> Game:
 
     print("SETTING MOVES")
 
     if turn['player_id'] == 1:
-        game.p1_move = turn['move']
+        game.p1.move = turn['move']
+        update_status(game, 1, Status.PLAYING)
 
     if turn['player_id'] == 2:
-        game.p2_move = turn['move']
+        game.p2.move = turn['move']
+        update_status(game, 2, Status.PLAYING)
 
     return game
 
@@ -125,8 +156,8 @@ def create_game() -> Game:
 
 def reset_moves(game: Game) -> Game:
 
-    game.p1_move = None
-    game.p2_move = None
+    game.p1.move = None
+    game.p2.move = None
 
     return game
 
@@ -187,12 +218,17 @@ if __name__ == '__main__':
             res = get_result(g)
 
             if not res['winner']:
+                g = update_status(g, obj['player_id'], Status.WAITING)
                 socket.send_pyobj(p)
                 continue
 
             p.result = res
 
-            g = reset_moves(g)
+            g = update_status(g, obj['player_id'], Status.DONE)
+
+            if g.p1.status == Status.DONE.value and \
+               g.p2.status == Status.DONE.value:
+                g = reset_moves(g)
 
             socket.send_pyobj(p)
             continue
