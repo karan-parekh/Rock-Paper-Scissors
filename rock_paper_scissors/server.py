@@ -150,8 +150,24 @@ def create_game() -> Game:
     games[id_] = g
 
     print("GAME CREATED WITH ID: {}".format(id_))
+    print("TOTAL GAMES ON SERVER: {}".format(len(games)))
 
     return g
+
+
+def remove_player(pid: int, game: Game):
+    """Removes player from game"""
+
+    if pid == 1:
+        # If P1 leaves, make P2 -> P1
+        game.p1, game.p2 = game.p2, Player(2)
+
+    else:
+        game.p2 = Player(2)
+
+    game.players -= 1
+
+    return game
 
 
 def reset_moves(game: Game) -> Game:
@@ -188,6 +204,7 @@ if __name__ == '__main__':
             p = Packet()
 
             if not g:
+                print("NO GAME FOUND WITH ID: {}".format(obj['game_id']))
                 socket.send_pyobj(p)
                 continue
 
@@ -196,6 +213,8 @@ if __name__ == '__main__':
             print("TOTAL PLAYERS: {}".format(g.players))
 
             if g.players > 2:
+                g.players -= 1
+
                 p.game_id   = g.id
                 p.game_full = True
 
@@ -232,6 +251,27 @@ if __name__ == '__main__':
 
             socket.send_pyobj(p)
             continue
+           
+        if command == 'leave':
+            g = get_game(obj['game_id'])
+            p = Packet()
+
+            g = remove_player(obj['player_id'], g)
+
+            if not g.players:
+                del games[g.id]
+                print("CLEARED GAME WITH ID: {}".format(g.id))
+
+            socket.send_pyobj(p)
+
+        if command == 'check':
+            g = get_game(obj['game_id'])
+            p = Packet()
+
+            if g.players >= 2:
+                p.game_full = True
+
+            socket.send_pyobj(p)
 
         if command == 'stop':
             print("STOPPING SERVER")

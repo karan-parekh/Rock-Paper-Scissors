@@ -55,6 +55,8 @@ def main():
 
     while True:
 
+        print("YOU CAN PRESS Q TO QUIT ANYTIME")
+
         cmd = input("PRESS C TO CREATE GAME\nPRESS J TO JOIN\n:").lower()
 
         if cmd == 'c':
@@ -77,10 +79,18 @@ def main():
             p = socket.recv_pyobj()
 
             if p.game_full:
-                print("GAME IS FULL. TRY ANOTHER ID OR CREATE A NEW GAME")
+                print("GAME IS FULL.\nTRY ANOTHER ID OR CREATE A NEW GAME")
+                continue
+
+            if not p.game_id:
+                print("NO GAME WITH ID: {}".format(state['game_id']))
+                print("TRY ANOTHER ID OR CREATE A NEW GAME")
                 continue
 
             return p
+
+        if cmd == 'q':
+            break
 
         print("TRY AGAIN")
 
@@ -106,10 +116,14 @@ if __name__ == '__main__':
     moves = {
         'r': Move.ROCK,
         'p': Move.PAPER,
-        's': Move.SCISSORS
+        's': Move.SCISSORS,
+        'q': None
     }
 
     obj = main()
+
+    if not obj:
+        exit()
 
     state['game_id']   = obj.game_id
     state['player_id'] = obj.player_id
@@ -148,7 +162,16 @@ if __name__ == '__main__':
         ans = input("REMATCH [Y/N]?: ").lower()
 
         if ans == 'y':
+            packet['cmd'] = 'check'
+            socket.send_pyobj(packet)
+
+            if not socket.recv_pyobj().game_full:
+                print("OPPONENT LEFT\nYOU CAN WAIT OR PRESS Q TO QUIT")
+
             continue
 
         else:
+            packet['cmd'] = 'leave'
+            socket.send_pyobj(packet)
+            print("YOU LEFT THE GAME")
             break
