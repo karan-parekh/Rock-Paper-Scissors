@@ -51,6 +51,15 @@ state = {
 }
 
 
+def quit_game():
+
+    packet['cmd'] = 'leave'
+    socket.send_pyobj(packet)
+    socket.recv_pyobj()
+
+    print("YOU LEFT THE GAME")
+
+
 def main():
 
     while True:
@@ -90,6 +99,7 @@ def main():
             return p
 
         if cmd == 'q':
+            quit_game()
             break
 
         print("TRY AGAIN")
@@ -105,7 +115,7 @@ def wait_for_response(p):
         res = socket.recv_pyobj()
 
         if not res.result:
-            time.sleep(1)
+            time.sleep(1.4)
             continue
 
         return res.result
@@ -139,6 +149,10 @@ if __name__ == '__main__':
             print("INVALID. TRY AGAIN")
             continue
 
+        if move == 'q':
+            quit_game()
+            break
+
         print("YOU PLAYED: {}".format(moves[move].name))
 
         packet['move'] = state['move'] = moves[move]
@@ -171,7 +185,7 @@ if __name__ == '__main__':
             continue
 
         else:
-            packet['cmd'] = 'leave'
-            socket.send_pyobj(packet)
-            print("YOU LEFT THE GAME")
+            # packet['cmd'] = 'leave'
+            # socket.send_pyobj(packet)
+            quit_game()
             break
