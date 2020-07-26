@@ -4,6 +4,9 @@ import zmq
 from objects import Packet, Move, Machine, Result
 from commands import Command
 
+from loguru import logger
+
+
 context = zmq.Context()
 
 print("Connecting to server port: 5555")
@@ -29,16 +32,18 @@ class MainMenu:
         self.command_map = {
             "c": Command.CREATE.value,
             "j": Command.JOIN.value,
-            "q": Command.LEAVE.value,
+            "q": Command.QUIT.value,
         }
 
     def get_command(self) -> Command:
+
+        logger.info("Getting command")
 
         self._display_menu()
         command = input().lower()
 
         if command not in list(self.command_map.keys()):
-            return self._try_again()
+            return self._try_again_get_command()
 
         return self.command_map[command]
 
@@ -46,7 +51,7 @@ class MainMenu:
 
         print(MAIN_MENU_TEXT)
 
-    def _try_again(self):
+    def _try_again_get_command(self):
 
         print(TRY_AGAIN_TEXT)
         self._display_menu()
@@ -74,6 +79,8 @@ class Session:
 
     def __init__(self):
 
+        logger.info("Initiating session")
+
         self.game = None
         self.player_id = None
 
@@ -85,42 +92,60 @@ class Session:
 
     def run(self, command: Command):
 
-        received_packet = None
-        packet = Packet(to=Machine.SERVER.value)
+        logger.info("Running session")
 
-        if command == Command.LEAVE.value:
+        received_packet = None
+
+        if command == Command.QUIT.value:
+
             self.quit()
 
         elif command == Command.CREATE.value:
 
-            packet.set_command(command)
-            received_packet = self.send_packet(packet)
+            received_packet = self.create_game(command)
 
         elif command == Command.JOIN.value:
-            pass
 
-        self.game = received_packet.get_game()
+            received_packet = self.join_game()
+
+        self.game      = received_packet.get_game()
         self.player_id = received_packet.get_player_id()
+
+        logger.info("Current game id   : {}".format(self.game.id))
+        logger.info("Current player id : {}".format(self.player_id))
 
         self.play()
 
+    def create_game(self, command) -> Packet:
+
+        logger.info("Creating game")
+
+        packet = Packet(to=Machine.SERVER.value)
+
+        packet.set_command(command)
+        return self.send_packet(packet)
+
     def join_game(self):
+
+        logger.info("Joining game with")
 
         inp = input(JOIN_TEXT).lower()
 
         try:
             game_id = int(inp)
         except ValueError:
-            game_id = self._try_again_join()
+            return self._try_again_join()
 
         packet = Packet(to=Machine.SERVER.value)
 
         packet.set_command(Command.JOIN.value)
         packet.set_game_id(game_id)
 
-
+        return self.send_packet(packet)
 
     def play(self):
+
+        logger.info("Game in PLAY state")
 
         packet = Packet(to=Machine.SERVER.value)
 
@@ -135,7 +160,15 @@ class Session:
         self.display_result(result)
 
         if self.rematch():
+            logger.info("Rematch confirmed")
+
             self.play()
+
+        logger.info("Leaving game")
+
+        packet.set_command(Command.LEAVE.value)
+
+        self.send_packet(packet)
 
     def rematch(self) -> bool:
 
@@ -181,6 +214,7 @@ class Session:
             return
 
     def quit(self):
+        logger.info("Quitting session")
         exit()
 
     def send_packet(self, packet: Packet) -> Packet:
@@ -224,5 +258,5 @@ if __name__ == '__main__':
 
     while True:
 
-        command = MainMenu().get_command()
-        session.run(command)
+        command_ = MainMenu().get_command()
+        session.run(command_)

@@ -1,20 +1,21 @@
-from enum import Enum
+from enum import Enum, auto
 
 
 class Command(Enum):
 
-    CREATE = 1  # , "c"
-    JOIN   = 2  # , "j"
-    PLAY   = 3  # , None
-    LEAVE  = 4  # , "q"
-    CHECK  = 5  # , None
-    STOP   = 6  # , None
+    CREATE = auto()  # , "c"
+    JOIN   = auto()  # , "j"
+    QUIT   = auto()  # , "q"
+    PLAY   = auto()  # , None
+    LEAVE  = auto()  # , None
+    CHECK  = auto()  # , None
+    STOP   = auto()  # , None
 
-    def __new__(cls, value, literal):
-
-        member = object.__new__(cls)
-
-        member._value_  = value
-        member.literal = literal
-
-        return member
+    # def __new__(cls, value, literal):
+    #
+    #     member = object.__new__(cls)
+    #
+    #     member._value_ = value
+    #     member.literal = literal
+    #
+    #     return member

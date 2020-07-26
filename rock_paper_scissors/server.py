@@ -25,14 +25,14 @@ class CommandParser:
     def parse(self) -> Optional[Packet]:
 
         command = self.received_packet.get_command()
+        packet  = Packet(to=Machine.CLIENT.value)
 
         if command == Command.STOP.value:
             return
 
         if command == Command.CREATE.value:
 
-            game   = GameManager().create_game()
-            packet = Packet(to=Machine.CLIENT.value)
+            game = GameManager().create_game()
 
             packet.set_game(game)
             packet.set_player_id(game.get_player(1).get_id())
@@ -43,7 +43,7 @@ class CommandParser:
 
             player_id = GameManager().join_game(self.received_packet.get_game_id())
 
-            return Packet(to=Machine.CLIENT.value).set_player_id(player_id)
+            return packet.set_player_id(player_id)
 
         if command == Command.PLAY.value:
 
@@ -56,7 +56,7 @@ class CommandParser:
                 self.received_packet.get_move()
             )
 
-            return Packet(to=Machine.CLIENT.value).set_result(game.get_result())
+            return packet.set_result(game.get_result())
 
         if command == Command.LEAVE.value:
 
@@ -65,13 +65,13 @@ class CommandParser:
                 self.received_packet.get_player_id()
             )
 
-            return Packet(to=Machine.CLIENT.value)
+            return packet
 
         if command == Command.CHECK.value:
 
             game_full = GameManager().is_game_full(self.received_packet.get_game_id())
 
-            return Packet(to=Machine.CLIENT.value).set_game_full(game_full)
+            return packet.set_game_full(game_full)
 
 
 if __name__ == '__main__':

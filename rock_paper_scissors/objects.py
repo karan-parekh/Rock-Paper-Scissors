@@ -288,7 +288,7 @@ class Packet:
         self.player_id = None
         self.move      = None
         self.result    = None
-        self.game_full = False
+        self.game_full = None
 
     def set_command(self, command):
 
